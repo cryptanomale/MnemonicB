@@ -48,14 +48,14 @@
 
   <!-- Debug -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(ProjectDir);$(ProjectDir)Tools;$(ProjectDir)config;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(ProjectDir)Tools;$(SolutionDir)config;$(IncludePath)</IncludePath>
     <SourcePath>$(ProjectDir);$(SourcePath)</SourcePath>
     <TargetName>BruteForceMnemonicEthereumV200</TargetName>
   </PropertyGroup>
 
   <!-- Release -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(ProjectDir);$(ProjectDir)Tools;$(ProjectDir)config;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(ProjectDir)Tools;$(SolutionDir)config;$(IncludePath)</IncludePath>
     <SourcePath>$(ProjectDir);$(SourcePath)</SourcePath>
     <TargetName>BruteForceMnemonicEthereumV200</TargetName>
   </PropertyGroup>
@@ -66,7 +66,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(ProjectDir);$(ProjectDir)Tools;$(ProjectDir)config;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(ProjectDir);$(ProjectDir)Tools;$(SolutionDir)config;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -80,9 +80,9 @@
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_86,sm_86</CodeGeneration>
+      <CodeGeneration>compute_86,sm_86;compute_75,sm_75;compute_89,sm_89;compute_86,compute_86</CodeGeneration>
       <Runtime>MTd</Runtime>
-      <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(ProjectDir)config" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(SolutionDir)config" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
     <CudaLink>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -102,7 +102,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(ProjectDir);$(ProjectDir)Tools;$(ProjectDir)config;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(ProjectDir);$(ProjectDir)Tools;$(SolutionDir)config;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -120,9 +120,9 @@
       <Optimization>O2</Optimization>
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <CodeGeneration>compute_86,sm_86</CodeGeneration>
+      <CodeGeneration>compute_86,sm_86;compute_75,sm_75;compute_89,sm_89;compute_86,compute_86</CodeGeneration>
       <Runtime>MT</Runtime>
-      <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(ProjectDir)config" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(SolutionDir)config" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
     <CudaLink>
       <AdditionalDependencies>cudadevrt.lib</AdditionalDependencies>
@@ -138,8 +138,9 @@
     <ClInclude Include="Helper.h" />
     <ClInclude Include="KernelStride.hpp" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="clion_defines.h" />
     <ClInclude Include="Tools\tools.h" />
-    <ClInclude Include="config\Config.hpp" />
+    <ClInclude Include="..\config\Config.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="Dispatcher.cu" />
@@ -148,6 +149,9 @@
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="KernelStride.cu" />
     <CudaCompile Include="Tools\tools.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\config\Config.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

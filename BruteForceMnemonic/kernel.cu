@@ -7,14 +7,14 @@
   * discussion  https://t.me/brute_force_gpu
   ******************************************************************************
   */
-#include <stdafx.h>
+#include "stdafx.h"
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
 
-#include <Dispatcher.h>
+#include "Dispatcher.h"
 #include <thread>
 
 int main()
