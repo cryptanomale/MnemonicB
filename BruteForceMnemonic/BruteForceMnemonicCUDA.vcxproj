@@ -83,7 +83,7 @@
       <CodeGeneration>compute_86,sm_86</CodeGeneration>
       <EnableVirtualArchInFatbin>false</EnableVirtualArchInFatbin>
       <Runtime>MTd</Runtime>
-      <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(SolutionDir)config" %(AdditionalOptions)</AdditionalOptions>
+      <Include>$(ProjectDir);$(ProjectDir)Tools;$(SolutionDir)config;%(Include)</Include>
     </CudaCompile>
     <CudaLink>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -124,7 +124,7 @@
       <CodeGeneration>compute_86,sm_86</CodeGeneration>
       <EnableVirtualArchInFatbin>false</EnableVirtualArchInFatbin>
       <Runtime>MT</Runtime>
-      <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(SolutionDir)config" %(AdditionalOptions)</AdditionalOptions>
+      <Include>$(ProjectDir);$(ProjectDir)Tools;$(SolutionDir)config;%(Include)</Include>
     </CudaCompile>
     <CudaLink>
       <AdditionalDependencies>cudadevrt.lib</AdditionalDependencies>
