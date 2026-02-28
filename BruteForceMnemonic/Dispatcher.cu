@@ -1,0 +1,225 @@
+/**
+******************************************************************************
+* @author Anton Houzich
+* @version V2.0.0 (fixed)
+* @date 29-April-2023
+* @mail houzich_anton@mail.ru
+* discussion https://t.me/brute_force_gpu
+******************************************************************************
+*/
+
+#include <stdio.h>
+
+#include <thread>
+#include <chrono>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <memory>
+#include <stdint.h>
+#include <algorithm>
+#include <functional>
+
+#include "Dispatcher.h"
+#include "GPU.h"
+#include "KernelStride.hpp"
+#include "Helper.h"
+
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include "../Tools/tools.h"
+#include "../Tools/utils.h"
+#include "../config/Config.hpp"
+
+static std::thread save_thread;
+
+int Generate_Mnemonic(void)
+{
+    cudaError_t cudaStatus = cudaSuccess;
+    int err;
+
+    // FIX #8: use unique_ptr to prevent memory leaks on goto Error
+    std::unique_ptr<DataClass>        Data;
+    std::unique_ptr<KernelStrideClass> Stride;
+
+    ConfigClass Config;
+
+    // FIX #5: replace infinite loop catch with proper error reporting and return
+    try {
+        parse_config(&Config, "config.cfg");
+        err = tools::stringToWordIndices(Config.static_words_generate_mnemonic + " ?",
+                                         Config.words_indicies_mnemonic);
+        if (err != 0) {
+            std::cerr << "Error stringToWordIndices()!" << std::endl;
+            return -1;
+        }
+
+        uint64_t number_of_generated_mnemonics =
+            (Config.number_of_generated_mnemonics / (Config.cuda_block * Config.cuda_grid))
+            * (Config.cuda_block * Config.cuda_grid);
+        if ((Config.number_of_generated_mnemonics % (Config.cuda_block * Config.cuda_grid)) != 0)
+            number_of_generated_mnemonics += Config.cuda_block * Config.cuda_grid;
+        Config.number_of_generated_mnemonics = number_of_generated_mnemonics;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Config parse error: " << e.what() << std::endl;
+        return -1;
+    }
+    catch (...) {
+        std::cerr << "Unknown config parse error!" << std::endl;
+        return -1;
+    }
+
+    devicesInfo();
+
+    uint32_t num_device = 0;
+#ifndef TEST_MODE
+    std::cout << "\n\nEnter number of device: ";
+    std::cin >> num_device;
+#endif
+    cudaStatus = cudaSetDevice(num_device);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaSetDevice failed! Do you have a CUDA-capable GPU installed?");
+        return -1;
+    }
+
+    size_t num_wallets_gpu = Config.cuda_grid * Config.cuda_block;
+    if (num_wallets_gpu < NUM_PACKETS_SAVE_IN_FILE) {
+        std::cerr << "Error num_wallets_gpu < NUM_PACKETS_SAVE_IN_FILE!" << std::endl;
+        return -1;
+    }
+
+    uint32_t num_bytes = 0;
+    if (Config.chech_equal_bytes_in_adresses == "yes") {
+#ifdef TEST_MODE
+        num_bytes = 6;
+#else
+        num_bytes = 8;
+#endif
+    }
+
+    std::cout << "\nNUM WALLETS IN ROUND GPU: "
+              << tools::formatWithCommas(num_wallets_gpu) << std::endl << std::endl;
+
+    // FIX #8: smart pointers — no leaks on early return
+    Data   = std::make_unique<DataClass>();
+    Stride = std::make_unique<KernelStrideClass>(Data.get());
+
+    size_t num_addresses_in_tables = 0;
+
+    std::cout << "READ TABLES! WAIT..." << std::endl;
+    tools::clearFiles();
+    err = tools::readAllTables(Data->host.tables, Config.folder_tables, "", &num_addresses_in_tables);
+    if (err == -1) { std::cerr << "Error readAllTables!" << std::endl; goto Error; }
+
+    if (num_addresses_in_tables == 0) {
+        std::cerr << "ERROR READ TABLES!! NO ADDRESSES IN FILES!!" << std::endl;
+        goto Error;
+    }
+
+    if (Data->malloc(Config.cuda_grid, Config.cuda_block, Config.num_paths,
+                     Config.num_child_addresses,
+                     Config.save_generation_result_in_file == "yes") != 0) {
+        std::cerr << "Error Data->Malloc()!" << std::endl;
+        goto Error;
+    }
+
+    if (Stride->init() != 0) { std::cerr << "Error INIT!!" << std::endl; goto Error; }
+
+    Data->host.freeTableBuffers();
+
+    std::cout << "START GENERATE ADDRESSES!\n";
+    std::cout << "PATH:\n";
+    if (Config.generate_path[0] != 0)
+        std::cout << "m/44'/60'/0'/0/0.." << (Config.num_child_addresses - 1) << "\n";
+    if (Config.generate_path[1] != 0)
+        std::cout << "m/44'/60'/0'/1/0.." << (Config.num_child_addresses - 1) << "\n";
+
+    std::cout << "\nGENERATE " << tools::formatWithCommas(Config.number_of_generated_mnemonics)
+              << " MNEMONICS. "
+              << tools::formatWithCommas(Config.number_of_generated_mnemonics * Data->num_all_childs)
+              << " ADDRESSES. MNEMONICS IN ROUNDS "
+              << tools::formatWithCommas(Data->wallets_in_round_gpu) << ". WAIT...\n\n";
+
+    tools::generateRandomUint64Buffer(Data->host.entropy,
+                                      Data->size_entropy_buf / sizeof(uint64_t));
+
+    if (cudaMemcpyToSymbol(dev_num_bytes_find, &num_bytes, 4, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        { std::cerr << "cudaMemcpyToSymbol dev_num_bytes_find failed!" << std::endl; goto Error; }
+    if (cudaMemcpyToSymbol(dev_generate_path, &Config.generate_path,
+                           sizeof(Config.generate_path), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        { std::cerr << "cudaMemcpyToSymbol dev_generate_path failed!" << std::endl; goto Error; }
+    if (cudaMemcpyToSymbol(dev_num_childs, &Config.num_child_addresses, 4, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        { std::cerr << "cudaMemcpyToSymbol dev_num_childs failed!" << std::endl; goto Error; }
+    if (cudaMemcpyToSymbol(dev_num_paths, &Config.num_paths, 4, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        { std::cerr << "cudaMemcpyToSymbol dev_num_paths failed!" << std::endl; goto Error; }
+    if (cudaMemcpyToSymbol(dev_static_words_indices, &Config.words_indicies_mnemonic,
+                           12 * 2, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        { std::cerr << "cudaMemcpyToSymbol dev_static_words_indices failed!" << std::endl; goto Error; }
+
+    for (size_t step = 0; step < Config.number_of_generated_mnemonics / Data->wallets_in_round_gpu; step++)
+    {
+        tools::start_time();
+
+        // FIX #4: join save_thread BEFORE launching new GPU work so host.save is safe
+        if (save_thread.joinable()) save_thread.join();
+
+        if (Config.save_generation_result_in_file == "yes") {
+            if (Stride->start_for_save(Config.cuda_grid, Config.cuda_block) != 0)
+                { std::cerr << "Error START!!" << std::endl; goto Error; }
+        } else {
+            if (Stride->start(Config.cuda_grid, Config.cuda_block) != 0)
+                { std::cerr << "Error START!!" << std::endl; goto Error; }
+        }
+
+        // Prepare next entropy while GPU is running (safe: different buffer)
+        tools::generateRandomUint64Buffer(Data->host.entropy,
+                                          Data->size_entropy_buf / sizeof(uint64_t));
+
+        if (Config.save_generation_result_in_file == "yes") {
+            if (Stride->end_for_save() != 0)
+                { std::cerr << "Error END!!" << std::endl; goto Error; }
+        } else {
+            if (Stride->end() != 0)
+                { std::cerr << "Error END!!" << std::endl; goto Error; }
+        }
+
+        // Now it is safe to start async save — GPU result is in host.save
+        if (Config.save_generation_result_in_file == "yes") {
+            save_thread = std::thread(&tools::saveResult,
+                                      (char*)Data->host.save, Data->size_save_buf);
+        }
+
+        tools::checkResult(Data->host.ret);
+
+        float delay;
+        tools::stop_time_and_calc_sec(&delay);
+        std::cout << "\rGENERATE: "
+                  << tools::formatWithCommas((double)Data->wallets_in_round_gpu / delay)
+                  << " MNEMONICS/SEC AND "
+                  << tools::formatWithCommas((double)(Data->wallets_in_round_gpu * Data->num_all_childs) / delay)
+                  << " ADDRESSES/SEC"
+                  << " | SCAN: "
+                  << tools::formatPrefix((double)(Data->wallets_in_round_gpu * Data->num_all_childs
+                                                   * num_addresses_in_tables) / delay)
+                  << " ADDRESSES/SEC"
+                  << " | ROUND: " << step;
+    }
+
+    std::cout << "\n\nEND!" << std::endl;
+    if (save_thread.joinable()) save_thread.join();
+
+    cudaStatus = cudaDeviceReset();
+    if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaDeviceReset failed!"); return -1; }
+    return 0;
+
+Error:
+    std::cout << "\n\nERROR!" << std::endl;
+    if (save_thread.joinable()) save_thread.join();
+    cudaStatus = cudaDeviceReset();
+    if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaDeviceReset failed!"); return -1; }
+    return -1;
+}
