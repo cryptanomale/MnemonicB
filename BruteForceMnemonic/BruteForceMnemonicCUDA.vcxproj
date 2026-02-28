@@ -155,7 +155,9 @@
     <CudaCompile Include="Tools\tools.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\config\Config.cpp" />
+    <ClCompile Include="..\config\Config.cpp">
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
