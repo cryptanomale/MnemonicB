@@ -81,7 +81,7 @@
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_86,sm_86</CodeGeneration>
-      <NvccCompilation>compile</NvccCompilation>
+      <EnableVirtualArchInFatbin>false</EnableVirtualArchInFatbin>
       <Runtime>MTd</Runtime>
       <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(SolutionDir)config" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
@@ -122,7 +122,7 @@
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CodeGeneration>compute_86,sm_86</CodeGeneration>
-      <NvccCompilation>compile</NvccCompilation>
+      <EnableVirtualArchInFatbin>false</EnableVirtualArchInFatbin>
       <Runtime>MT</Runtime>
       <AdditionalOptions>-I"$(ProjectDir)" -I"$(ProjectDir)Tools" -I"$(SolutionDir)config" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
